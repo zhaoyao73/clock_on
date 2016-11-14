@@ -3,24 +3,20 @@ package com.example.walker.shanbaydaka;
 import android.animation.Animator;
 import android.animation.AnimatorListenerAdapter;
 import android.annotation.TargetApi;
+import android.app.LoaderManager.LoaderCallbacks;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
-import android.content.pm.PackageManager;
-import android.support.annotation.NonNull;
-import android.support.design.widget.Snackbar;
-import android.support.v7.app.AppCompatActivity;
-import android.app.LoaderManager.LoaderCallbacks;
-
 import android.content.CursorLoader;
 import android.content.Loader;
+import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.AsyncTask;
-
 import android.os.Build;
 import android.os.Bundle;
 import android.provider.ContactsContract;
+import android.support.v7.app.AppCompatActivity;
 import android.text.TextUtils;
 import android.view.KeyEvent;
 import android.view.View;
@@ -29,16 +25,16 @@ import android.view.inputmethod.EditorInfo;
 import android.widget.ArrayAdapter;
 import android.widget.AutoCompleteTextView;
 import android.widget.Button;
+import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
-
-import static android.Manifest.permission.READ_CONTACTS;
-
-import com.example.walker.shanbaydaka.ShanbaySite;
+import java.util.TimeZone;
 /**
  * A login screen that offers login via email/password.
  */
@@ -46,19 +42,6 @@ import com.example.walker.shanbaydaka.ShanbaySite;
 
 
 public class LoginActivity extends AppCompatActivity implements LoaderCallbacks<Cursor> {
-
-    /**
-     * Id to identity READ_CONTACTS permission request.
-     */
-    private static final int REQUEST_READ_CONTACTS = 0;
-
-    /**
-     * A dummy authentication store containing known user names and passwords.
-     * TODO: remove after connecting to a real authentication system.
-     */
-    private static final String[] DUMMY_CREDENTIALS = new String[]{
-            "foo@example.com:hello", "bar@example.com:world"
-    };
     /**
      * Keep track of the login task to ensure we can cancel it if requested.
      */
@@ -70,6 +53,7 @@ public class LoginActivity extends AppCompatActivity implements LoaderCallbacks<
     private EditText mPasswordView;
     private View mProgressView;
     private View mLoginFormView;
+    private CheckBox mSaveUsernameView;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -77,8 +61,7 @@ public class LoginActivity extends AppCompatActivity implements LoaderCallbacks<
         setContentView(R.layout.activity_login);
         // Set up the login form.
         mEmailView = (AutoCompleteTextView) findViewById(R.id.email);
-        populateAutoComplete();
-
+        mSaveUsernameView = (CheckBox) findViewById(R.id.save_username_check);
         mPasswordView = (EditText) findViewById(R.id.password);
         mPasswordView.setOnEditorActionListener(new TextView.OnEditorActionListener() {
             @Override
@@ -101,51 +84,53 @@ public class LoginActivity extends AppCompatActivity implements LoaderCallbacks<
 
         mLoginFormView = findViewById(R.id.login_form);
         mProgressView = findViewById(R.id.login_progress);
+        loadPreference();
     }
 
-    private void populateAutoComplete() {
-        if (!mayRequestContacts()) {
-            return;
+    private void loadPreference() {
+        String username_key, username;
+
+        Context context = this.getApplicationContext();
+        SharedPreferences sharedPref = context.getSharedPreferences(getString(R.string.shared_preference_file_key),
+                Context.MODE_PRIVATE);
+
+        username_key = getString(R.string.save_username);
+        username = sharedPref.getString(username_key, null);
+        if (username != null) {
+            mEmailView.setText(username);
+            mSaveUsernameView.setChecked(true);
         }
 
-        getLoaderManager().initLoader(0, null, this);
     }
 
-    private boolean mayRequestContacts() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
-            return true;
-        }
-        if (checkSelfPermission(READ_CONTACTS) == PackageManager.PERMISSION_GRANTED) {
-            return true;
-        }
-        if (shouldShowRequestPermissionRationale(READ_CONTACTS)) {
-            Snackbar.make(mEmailView, R.string.permission_rationale, Snackbar.LENGTH_INDEFINITE)
-                    .setAction(android.R.string.ok, new View.OnClickListener() {
-                        @Override
-                        @TargetApi(Build.VERSION_CODES.M)
-                        public void onClick(View v) {
-                            requestPermissions(new String[]{READ_CONTACTS}, REQUEST_READ_CONTACTS);
-                        }
-                    });
-        } else {
-            requestPermissions(new String[]{READ_CONTACTS}, REQUEST_READ_CONTACTS);
-        }
-        return false;
-    }
+    private void storePreference() {
+        String username_key, username;
+        boolean delete = false;
 
-    /**
-     * Callback received when a permissions request has been completed.
-     */
-    @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
-                                           @NonNull int[] grantResults) {
-        if (requestCode == REQUEST_READ_CONTACTS) {
-            if (grantResults.length == 1 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                populateAutoComplete();
-            }
+        if (!mSaveUsernameView.isChecked()) {
+            delete = true;
+        }
+        username = mEmailView.getText().toString();
+        if (username.isEmpty()) {
+            return ;
+        }
+
+        Context context = this.getApplicationContext();
+        SharedPreferences sharedPref = context.getSharedPreferences(getString(R.string.shared_preference_file_key),
+                Context.MODE_PRIVATE);
+        SharedPreferences.Editor editor = sharedPref.edit();
+
+        username_key = getString(R.string.save_username);
+        if (!delete) {
+            editor.putString(username_key, username);
+            editor.apply();
+        }
+
+        if (delete) {
+            editor.remove(username_key);
+            editor.apply();
         }
     }
-
 
     /**
      * Attempts to sign in or register the account specified by the login form.
@@ -191,6 +176,7 @@ public class LoginActivity extends AppCompatActivity implements LoaderCallbacks<
             // form field with an error.
             focusView.requestFocus();
         } else {
+            storePreference();
             // Show a progress spinner, and kick off a background task to
             // perform the user login attempt.
             showProgress(true);
@@ -202,6 +188,7 @@ public class LoginActivity extends AppCompatActivity implements LoaderCallbacks<
 
     private boolean isEmailValid(String email) {
         //TODO: Replace this with your own logic
+
         return true;
         // return email.contains("@");
     }
@@ -339,15 +326,34 @@ public class LoginActivity extends AppCompatActivity implements LoaderCallbacks<
             showProgress(false);
 
             if (success) {
-                        String nonCheckinList;
-                        nonCheckinList = mShanbay.getMemberNoneCheckin();
-                        if (nonCheckinList != null) {
-                            ClipboardManager clipboard = (ClipboardManager)
-                                    getSystemService(Context.CLIPBOARD_SERVICE);
-                            ClipData clip = ClipData.newPlainText("ShanbayDaka", nonCheckinList);
-                            clipboard.setPrimaryClip(clip);
-                            Toast.makeText(getApplicationContext(), nonCheckinList, Toast.LENGTH_LONG).show();
-                        }
+                String nonCheckinList, daKaTime;
+                TimeZone bjTZ;
+                SimpleDateFormat bjsdf = new SimpleDateFormat();
+                Date d = new Date();
+
+                nonCheckinList = mShanbay.getMemberNoneCheckin();
+                bjTZ = TimeZone.getTimeZone("Asia/Shanghai");
+                bjsdf.setTimeZone(bjTZ);
+                /* add local time */
+                daKaTime = "Local time: " + d.toString();
+                daKaTime = daKaTime.concat( ", " + bjTZ.getID() + "(" + bjTZ.getDisplayName() + "):" + bjsdf.format(d));
+
+                if (nonCheckinList != null) {
+                    ClipboardManager clipboard = (ClipboardManager)
+                            getSystemService(Context.CLIPBOARD_SERVICE);
+
+                    nonCheckinList = String.format(nonCheckinList + " %s", daKaTime);
+                    ClipData clip = ClipData.newPlainText("ShanbayDaka", nonCheckinList);
+                    clipboard.setPrimaryClip(clip);
+                    Toast.makeText(getApplicationContext(),
+                            nonCheckinList,
+                            Toast.LENGTH_LONG).show();
+                    System.out.println(nonCheckinList);
+                } else {
+                    Toast.makeText(getApplicationContext(),
+                                   String.format("All member punched cards already! at %s", daKaTime),
+                                   Toast.LENGTH_LONG).show();
+                }
                 finish();
             } else {
                 mPasswordView.setError(getString(R.string.error_incorrect_password));

@@ -1,12 +1,18 @@
 apply plugin: 'com.android.application'
 
 android {
+    signingConfigs {
+        config {
+            keyAlias 'shanbaydaka_key'
+            keyPassword 'shanbaydaka'
+        }
+    }
     compileSdkVersion 23
     buildToolsVersion '24.0.3'
     defaultConfig {
         applicationId "com.example.walker.shanbaydaka"
         minSdkVersion 21
-        targetSdkVersion 23
+        targetSdkVersion 21
         versionCode 1
         versionName "1.0"
     }
@@ -26,5 +32,4 @@ dependencies {
     compile 'org.jsoup:jsoup:1.9.2'
     compile 'com.android.support:appcompat-v7:21.0.3'
     compile 'com.android.support:design:23.0.0'
-    compile 'org.apache.httpcomponents:httpcomponents-core:4.4.5'
 }
